@@ -78,8 +78,8 @@ def create_video(frames, height, width, channels, output_filename, fps=30):
 
 def main():
     # Input and output filenames
-    input_bin_file = "scaled.bin"  # Replace with your input .bin file
-    output_video_file = "output_video_scale.mp4"  # Replace with your desired output video file
+    input_bin_file = "scale.bin"  # Replace with your input .bin file
+    output_video_file = "scale_n.mp4"  # Replace with your desired output video file
 
     # Read the .bin file
     frames, height, width, channels = read_bin_file(input_bin_file)
