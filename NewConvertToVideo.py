@@ -1,53 +1,75 @@
-import cv2
 import numpy as np
-import struct
+import cv2
+import os
 
-# File paths
-remaining_file_path = "vid.bin"
-output_video_path = "output_video.avi"
+def bin_to_video(bin_file, output_video_file, num_frames, num_channels, height, width, fps=30):
+    """
+    Convert a binary file to a video file.
 
-# Known parameters (replace these with actual extracted values)
-channels = 3  # From the binary file
-width = 128  # Extracted width
-height = 128  # Extracted height
-no_frames = 100  # Total number of frames extracted
+    :param bin_file: Path to the input binary file.
+    :param output_video_file: Path to save the output video file.
+    :param num_frames: Number of frames in the video.
+    :param num_channels: Number of color channels (e.g., 3 for RGB).
+    :param height: Height of each frame.
+    :param width: Width of each frame.
+    :param fps: Frames per second for the output video.
+    """
+    # Calculate the total number of bytes in the binary file
+    expected_size = num_frames * num_channels * height * width
+    actual_size = os.path.getsize(bin_file)
 
-# Open the remaining binary data file
-with open(remaining_file_path, 'rb') as file:
-    remaining_data = file.read()
+    if expected_size != actual_size:
+        raise ValueError(
+            f"File size mismatch! Expected {expected_size} bytes, but got {actual_size} bytes. "
+            "Please check the parameters (num_frames, num_channels, height, width)."
+        )
 
-# Calculate the size of a single channel per frame
-single_channel_size = width * height
-frame_size = channels * single_channel_size
+    # Read the binary file
+    with open(bin_file, 'rb') as f:
+        video_data = np.frombuffer(f.read(), dtype=np.uint8)
 
-# Ensure the data size matches the expected number of frames
-assert len(remaining_data) == frame_size * no_frames, "Data size mismatch!"
+    # Calculate the size of a single channel per frame
+    single_channel_size = height * width
+    frame_size = num_channels * single_channel_size
 
-# Create a VideoWriter object using OpenCV
-fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for AVI files
-fps = 30  # Frames per second
-video_writer = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    # Initialize video writer
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Codec for AVI files
+    video_writer = cv2.VideoWriter(output_video_file, fourcc, fps, (width, height))
 
-# Process each frame
-for i in range(no_frames):
-    # Extract the data for this frame
-    frame_data = remaining_data[i * frame_size: (i + 1) * frame_size]
+    # Process each frame
+    for i in range(num_frames):
+        # Extract the data for this frame
+        frame_data = video_data[i * frame_size: (i + 1) * frame_size]
 
-    # Split the frame data into channels
-    channel_1 = frame_data[0:single_channel_size]
-    channel_2 = frame_data[single_channel_size:2 * single_channel_size]
-    channel_3 = frame_data[2 * single_channel_size:3 * single_channel_size]
+        # Split the frame data into channels
+        channels = [
+            frame_data[j * single_channel_size: (j + 1) * single_channel_size].reshape((height, width))
+            for j in range(num_channels)
+        ]
 
-    # Combine the channels into a single frame
-    frame = np.zeros((height, width, channels), dtype=np.uint8)
-    frame[:, :, 0] = np.frombuffer(channel_1, dtype=np.uint8).reshape((height, width))  # Red
-    frame[:, :, 1] = np.frombuffer(channel_2, dtype=np.uint8).reshape((height, width))  # Green
-    frame[:, :, 2] = np.frombuffer(channel_3, dtype=np.uint8).reshape((height, width))  # Blue
+        # Combine the channels into a single frame
+        if num_channels == 1:
+            frame = cv2.cvtColor(channels[0], cv2.COLOR_GRAY2BGR)  # Convert grayscale to BGR
+        else:
+            frame = np.stack(channels, axis=-1)  # Combine channels into an RGB frame
 
-    # Write the frame to the video
-    video_writer.write(frame)
+        # Write the frame to the video
+        video_writer.write(frame)
 
-# Release the VideoWriter
-video_writer.release()
+    # Release the video writer
+    video_writer.release()
+    print(f"Video saved to {output_video_file}")
 
-print(f"Video has been created and saved as {output_video_path}")
+# Example usage
+if __name__ == "__main__":
+    # Parameters (adjust these based on your video metadata)
+    bin_file = "output.bin"
+    output_video_file = "clip.avi"
+    num_frames = 100  # Number of frames
+    num_channels = 3  # Number of color channels (1 for grayscale, 3 for RGB)
+    height = 128  # Height of each frame
+    width = 128  # Width of each frame
+    fps = 30  # Frames per second
+
+    # Convert binary file to video
+    bin_to_video(bin_file, output_video_file, num_frames, num_channels, height, width, fps)

@@ -1,7 +1,7 @@
 import struct
 
 # Input and output file paths
-input_file_path = "test.bin"
+input_file_path = "output.bin"
 output_file_path = "vid.bin"
 
 # Open the input binary file
